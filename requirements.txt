@@ -1,0 +1,8 @@
+pydantic-ai[anthropic]>=0.0.14
+python-dotenv>=1.0.0
+anthropic>=0.39.0
+langsmith>=0.1.0
+httpx>=0.27.0
+airbyte-agent-gong>=0.19.30
+airbyte-agent-hubspot>=0.15.29
+gradio>=4.0.0
