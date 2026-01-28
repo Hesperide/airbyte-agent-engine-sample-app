@@ -12,6 +12,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.models.anthropic import AnthropicModel
+from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.messages import FunctionToolCallEvent
 from langsmith import traceable
 from airbyte_agent_gong import GongConnector
@@ -22,9 +23,10 @@ from airbyte_agent_linear import LinearConnector
 load_dotenv()
 
 # Airbyte configuration constants
-AIRBYTE_CLIENT_ID = os.getenv("AIRBYTE_CLIENT_ID")
-AIRBYTE_CLIENT_SECRET = os.getenv("AIRBYTE_CLIENT_SECRET")
-EXTERNAL_USER_ID = os.getenv("EXTERNAL_USER_ID", "customer-workspace")
+AIRBYTE_CLIENT_ID = os.getenv("AC_AIRBYTE_CLIENT_ID")
+AIRBYTE_CLIENT_SECRET = os.getenv("AC_AIRBYTE_CLIENT_SECRET")
+EXTERNAL_USER_ID = os.getenv("AC_EXTERNAL_USER_ID", "customer-workspace")
+ANTHROPIC_API_KEY = os.getenv("AC_ANTHROPIC_API_KEY")
 
 
 # ============== Dependencies ==============
@@ -80,7 +82,8 @@ def create_agent() -> Agent[AgentDeps, str]:
     Returns:
         Agent[AgentDeps, str]: Configured Pydantic AI agent with dependency type specified
     """
-    model = AnthropicModel("claude-sonnet-4-5-20250929")
+    provider = AnthropicProvider(api_key=ANTHROPIC_API_KEY)
+    model = AnthropicModel("claude-sonnet-4-5-20250929", provider=provider)
     system_prompt = _load_system_prompt()
 
     agent = Agent(
@@ -111,7 +114,7 @@ def register_tools(agent: Agent[AgentDeps, str]) -> None:
     # ============== Gong Tools ==============
 
     @agent.tool
-    @GongConnector.describe
+    @GongConnector.tool_utils
     async def gong_execute(
         ctx: RunContext[AgentDeps],
         entity: str,
@@ -126,7 +129,7 @@ def register_tools(agent: Agent[AgentDeps, str]) -> None:
     # ============== Linear Tools ==============
 
     @agent.tool
-    @LinearConnector.describe
+    @LinearConnector.tool_utils
     async def linear_execute(
         ctx: RunContext[AgentDeps],
         entity: str,
@@ -141,7 +144,7 @@ def register_tools(agent: Agent[AgentDeps, str]) -> None:
     # ============== HubSpot Tools ==============
 
     @agent.tool
-    @HubspotConnector.describe
+    @HubspotConnector.tool_utils
     async def hubspot_execute(
         ctx: RunContext[AgentDeps],
         entity: str,

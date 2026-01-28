@@ -1,0 +1,21 @@
+{
+  "name": "widget-mcp-server",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "MCP App Server for Airbyte Embedded Widget",
+  "main": "dist/server.mjs",
+  "scripts": {
+    "build": "esbuild server.ts --bundle --platform=node --format=esm --outfile=dist/server.mjs --external:node:*",
+    "serve": "node dist/server.mjs",
+    "dev": "node --import tsx server.ts"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/ext-apps": "^1.0.1",
+    "@modelcontextprotocol/sdk": "^1.24.0",
+    "@types/node": "^22.10.0",
+    "esbuild": "^0.25.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "zod": "^4.1.13"
+  }
+}

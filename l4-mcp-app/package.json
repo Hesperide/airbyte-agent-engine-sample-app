@@ -1,0 +1,27 @@
+{
+  "name": "l4-mcp-app",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "MCP Apps Chat with Airbyte Widget - Full TypeScript Implementation",
+  "main": "server.ts",
+  "scripts": {
+    "build": "npm run build:widget",
+    "build:widget": "cd widget-mcp-server && npm run build",
+    "serve": "node --import tsx server.ts",
+    "dev": "node --import tsx server.ts",
+    "start": "npm run build && npm run serve"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
+    "@modelcontextprotocol/ext-apps": "^1.0.1",
+    "@modelcontextprotocol/sdk": "^1.24.0",
+    "@types/express": "^4.17.25",
+    "@types/node": "^22.10.0",
+    "cors": "^2.8.5",
+    "esbuild": "^0.25.0",
+    "express": "^4.22.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "zod": "^4.1.13"
+  }
+}

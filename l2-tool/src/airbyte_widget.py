@@ -37,11 +37,11 @@ async def fetch_application_token() -> str:
         AirbyteAuthError: If authentication fails
         AirbyteConnectionError: If connection fails
     """
-    client_id = os.getenv("AIRBYTE_CLIENT_ID")
-    client_secret = os.getenv("AIRBYTE_CLIENT_SECRET")
+    client_id = os.getenv("AC_AIRBYTE_CLIENT_ID")
+    client_secret = os.getenv("AC_AIRBYTE_CLIENT_SECRET")
 
     if not client_id or not client_secret:
-        raise AirbyteAuthError("Missing AIRBYTE_CLIENT_ID or AIRBYTE_CLIENT_SECRET environment variables")
+        raise AirbyteAuthError("Missing AC_AIRBYTE_CLIENT_ID or AC_AIRBYTE_CLIENT_SECRET environment variables")
 
     try:
         async with httpx.AsyncClient() as client:
@@ -78,10 +78,10 @@ async def fetch_widget_token(app_token: str) -> str:
         AirbyteAuthError: If authentication fails
         AirbyteConnectionError: If connection fails
     """
-    external_user_id = os.getenv("EXTERNAL_USER_ID")
+    external_user_id = os.getenv("AC_EXTERNAL_USER_ID")
 
     if not external_user_id:
-        raise AirbyteAuthError("Missing EXTERNAL_USER_ID environment variable")
+        raise AirbyteAuthError("Missing AC_EXTERNAL_USER_ID environment variable")
 
     try:
         async with httpx.AsyncClient() as client:
