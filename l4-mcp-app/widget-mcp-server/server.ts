@@ -107,45 +107,95 @@ const APP_HTML = `<!DOCTYPE html>
   <div class="container">
     <p id="status" class="loading">Initializing widget...</p>
   </div>
-  <script>
+  <script type="module">
+    import { App, applyDocumentTheme, applyHostStyleVariables } from "https://esm.sh/@modelcontextprotocol/ext-apps@1.0.1";
+
     const statusEl = document.getElementById("status");
     let widgetInstance = null;
 
-    function showStatus(message, type) {
+    function showStatus(message, type = "loading") {
       statusEl.textContent = message;
-      statusEl.className = type || "loading";
+      statusEl.className = type;
     }
 
-    function initWidget(widgetToken) {
+    const app = new App({ name: "Airbyte Widget", version: "1.0.0" });
+
+    app.onhostcontextchanged = (ctx) => {
+      if (ctx.theme) applyDocumentTheme(ctx.theme);
+      if (ctx.styles?.variables) applyHostStyleVariables(ctx.styles.variables);
+      if (ctx.safeAreaInsets) {
+        document.body.style.padding =
+          \`\${ctx.safeAreaInsets.top}px \${ctx.safeAreaInsets.right}px \${ctx.safeAreaInsets.bottom}px \${ctx.safeAreaInsets.left}px\`;
+      }
+    };
+
+    app.ontoolinput = () => {
+      showStatus("Fetching widget token...", "loading");
+    };
+
+    app.ontoolresult = (result) => {
+      if (result.isError) {
+        const errorText = result.content?.find(c => c.type === "text")?.text ?? "Unknown error";
+        showStatus(errorText, "error");
+        return;
+      }
+
+      const { widgetToken } = (result.structuredContent || {});
+
       if (!widgetToken) {
-        showStatus("No widget token available", "error");
+        showStatus("No widget token received", "error");
         return;
       }
 
       showStatus("Opening Airbyte widget...", "success");
 
       try {
+        if (widgetInstance) {
+          widgetInstance.destroy?.();
+        }
+
         widgetInstance = new AirbyteEmbeddedWidget({
           token: widgetToken,
-          onEvent: function(event) {
+          onEvent: (event) => {
             console.log("Airbyte widget event:", event);
+            app.sendLog({ level: "info", data: \`Widget event: \${JSON.stringify(event)}\` });
           }
         });
 
         widgetInstance.open();
         showStatus("Widget opened! Configure your integration.", "success");
       } catch (error) {
-        showStatus("Failed to initialize widget: " + error.message, "error");
+        showStatus(\`Failed to initialize widget: \${error.message}\`, "error");
       }
-    }
+    };
 
-    window.addEventListener("message", function(event) {
-      if (event.data && event.data.type === "widget-token") {
-        initWidget(event.data.token);
+    app.ontoolcancelled = (params) => {
+      showStatus(\`Cancelled: \${params.reason || "Unknown reason"}\`, "error");
+    };
+
+    app.onerror = (error) => {
+      showStatus(\`Error: \${error.message}\`, "error");
+    };
+
+    app.onteardown = async () => {
+      if (widgetInstance) {
+        try {
+          widgetInstance.destroy?.();
+        } catch (e) {
+          console.warn("Error destroying widget:", e);
+        }
+        widgetInstance = null;
       }
+      return {};
+    };
+
+    app.connect().then(() => {
+      const ctx = app.getHostContext();
+      if (ctx) app.onhostcontextchanged(ctx);
+      showStatus("Ready. Waiting for tool call...", "loading");
+    }).catch((error) => {
+      showStatus(\`Connection failed: \${error.message}\`, "error");
     });
-
-    showStatus("Waiting for widget token...", "loading");
   </script>
 </body>
 </html>`;
