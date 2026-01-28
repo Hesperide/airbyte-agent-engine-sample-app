@@ -1,0 +1,35 @@
+{
+  "name": "connector-mcp-server",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "MCP App Server for Airbyte Connector Management (no iframe approach)",
+  "main": "dist/server.mjs",
+  "bin": {
+    "connector-mcp-server": "dist/server.mjs"
+  },
+  "scripts": {
+    "build": "npm run build:app && npm run build:server",
+    "build:app": "vite build",
+    "build:server": "esbuild server.ts --bundle --platform=node --format=esm --outfile=dist/server.mjs --external:node:* --external:express --external:cors",
+    "serve": "node dist/server.mjs",
+    "serve:stdio": "node dist/server.mjs --stdio",
+    "dev": "node --import tsx server.ts"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/ext-apps": "^1.0.1",
+    "@modelcontextprotocol/sdk": "^1.24.0",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.0",
+    "cors": "^2.8.5",
+    "esbuild": "^0.25.0",
+    "express": "^5.1.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.1",
+    "vite-plugin-singlefile": "^2.0.3",
+    "zod": "^4.1.13"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3"
+  }
+}
