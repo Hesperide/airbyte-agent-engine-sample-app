@@ -149,7 +149,8 @@ export function loadSandboxProxy(
   // Prevent reload
   if (iframe.src) return Promise.resolve(false);
 
-  iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms");
+  // Include allow-popups and allow-popups-to-escape-sandbox to support OAuth flows
+  iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox");
 
   // Set Permission Policy allow attribute based on requested permissions
   const allowAttribute = buildAllowAttribute(permissions);
@@ -202,7 +203,13 @@ export async function initializeApp(
   // Load inner iframe HTML with CSP and permissions metadata
   const { html, csp, permissions } = await appResourcePromise;
   log.info("Sending UI resource HTML to MCP App", csp ? `(CSP: ${JSON.stringify(csp)})` : "", permissions ? `(Permissions: ${JSON.stringify(permissions)})` : "");
-  await appBridge.sendSandboxResourceReady({ html, csp, permissions });
+  // Include allow-popups in sandbox to support OAuth flows that open popup windows
+  await appBridge.sendSandboxResourceReady({
+    html,
+    csp,
+    permissions,
+    sandbox: "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox",
+  });
 
   // Wait for inner iframe to be ready
   log.info("Waiting for MCP App to initialize...");
