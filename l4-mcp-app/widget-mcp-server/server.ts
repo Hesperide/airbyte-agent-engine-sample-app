@@ -5,7 +5,78 @@
  * MCP server that provides the Airbyte Embedded Widget as an MCP App.
  * Uses AC_ prefixed environment variables for configuration.
  * Supports both stdio and HTTP transports.
+ *
+ * Environment Configuration:
+ * - Set AIRBYTE_WIDGET_MCP_ENV_FILE to path of .env file to load
+ * - Or set AC_AIRBYTE_CLIENT_ID, AC_AIRBYTE_CLIENT_SECRET directly
  */
+
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+/**
+ * Simple .env file parser (avoids dotenv bundling issues with esbuild)
+ */
+function loadEnvFile(filePath: string): void {
+  try {
+    const content = readFileSync(filePath, "utf-8");
+    const lines = content.split("\n");
+
+    for (const line of lines) {
+      // Skip comments and empty lines
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+
+      // Parse KEY=VALUE
+      const match = trimmed.match(/^([^=]+)=(.*)$/);
+      if (match) {
+        const key = match[1].trim();
+        let value = match[2].trim();
+
+        // Remove quotes if present
+        if ((value.startsWith('"') && value.endsWith('"')) ||
+            (value.startsWith("'") && value.endsWith("'"))) {
+          value = value.slice(1, -1);
+        }
+
+        // Only set if not already in environment
+        if (!process.env[key]) {
+          process.env[key] = value;
+        }
+      }
+    }
+  } catch (error) {
+    // Logging disabled in stdio mode to avoid JSON parsing errors
+    // console.error(`[MCP Server] Error loading env file: ${error}`);
+  }
+}
+
+// Load environment file if AIRBYTE_WIDGET_MCP_ENV_FILE is set
+const envFilePath = process.env.AIRBYTE_WIDGET_MCP_ENV_FILE;
+if (envFilePath) {
+  if (existsSync(envFilePath)) {
+    // Logging disabled in stdio mode to avoid JSON parsing errors
+    // console.error(`[MCP Server] Loading environment from: ${envFilePath}`);
+    loadEnvFile(envFilePath);
+  } else {
+    // console.error(`[MCP Server] Warning: Environment file not found: ${envFilePath}`);
+  }
+}
+
+// Map AIRBYTE_* variables to AC_AIRBYTE_* if not already set
+if (!process.env.AC_AIRBYTE_CLIENT_ID && process.env.AIRBYTE_CLIENT_ID) {
+  process.env.AC_AIRBYTE_CLIENT_ID = process.env.AIRBYTE_CLIENT_ID;
+}
+if (!process.env.AC_AIRBYTE_CLIENT_SECRET && process.env.AIRBYTE_CLIENT_SECRET) {
+  process.env.AC_AIRBYTE_CLIENT_SECRET = process.env.AIRBYTE_CLIENT_SECRET;
+}
+if (!process.env.AC_EXTERNAL_USER_ID && process.env.EXTERNAL_USER_ID) {
+  process.env.AC_EXTERNAL_USER_ID = process.env.EXTERNAL_USER_ID;
+}
 
 import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -15,21 +86,21 @@ import type { CallToolResult, ReadResourceResult } from "@modelcontextprotocol/s
 import { z } from "zod";
 import express from "express";
 import cors from "cors";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 const AIRBYTE_API_BASE = "https://api.airbyte.ai/api/v1";
+
+// Hardcoded credentials (for development only - used as fallback)
+const HARDCODED_CLIENT_ID = "8512844f-d22b-47bf-8a74-f3f6bfefb5cb";
+const HARDCODED_CLIENT_SECRET = "dtdXV61f9AYAvOx3MuYVIeOBfikdKdTt";
+const HARDCODED_EXTERNAL_USER_ID = "default-workspace";
 
 // Read the bundled MCP App HTML at startup
 const APP_HTML = readFileSync(join(__dirname, "mcp-app.html"), "utf-8");
 
 async function fetchApplicationToken(): Promise<string> {
-  const clientId = process.env.AC_AIRBYTE_CLIENT_ID;
-  const clientSecret = process.env.AC_AIRBYTE_CLIENT_SECRET;
+  // Use hardcoded values as fallback
+  const clientId = process.env.AC_AIRBYTE_CLIENT_ID || HARDCODED_CLIENT_ID;
+  const clientSecret = process.env.AC_AIRBYTE_CLIENT_SECRET || HARDCODED_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
     throw new Error("Missing AC_AIRBYTE_CLIENT_ID or AC_AIRBYTE_CLIENT_SECRET environment variables");
@@ -56,7 +127,7 @@ async function fetchApplicationToken(): Promise<string> {
 }
 
 async function fetchWidgetToken(appToken: string): Promise<string> {
-  const externalUserId = process.env.AC_EXTERNAL_USER_ID ?? "customer-workspace";
+  const externalUserId = process.env.AC_EXTERNAL_USER_ID || HARDCODED_EXTERNAL_USER_ID;
   const allowedOrigin = process.env.ALLOWED_ORIGIN ?? "null";
 
   const response = await fetch(`${AIRBYTE_API_BASE}/embedded/widget-token`, {
@@ -172,7 +243,7 @@ async function main() {
   const transportMode = process.argv.includes("--stdio") ? "stdio" : "http";
 
   if (transportMode === "stdio") {
-    console.log("[MCP Server] Starting in stdio mode...");
+    // Don't log in stdio mode - stdout is used for JSON-RPC messages
     const server = createServer();
     await server.connect(new StdioServerTransport());
   } else {
@@ -185,8 +256,6 @@ async function main() {
     // Handle POST requests - stateless mode (new server per request)
     // This is the recommended pattern from the MCP SDK for HTTP servers
     app.post("/mcp", async (req, res) => {
-      console.log(`[MCP Server] POST /mcp received, body:`, JSON.stringify(req.body));
-
       try {
         // Create a new server and transport for each request (stateless mode)
         const server = createServer();
@@ -199,12 +268,11 @@ async function main() {
 
         // Clean up after request completes
         res.on("close", () => {
-          console.log("[MCP Server] Request closed, cleaning up");
           transport.close();
           server.close();
         });
       } catch (error) {
-        console.error("[MCP Server] Error handling POST:", error);
+        console.error("[MCP Server] Error:", error);
         if (!res.headersSent) {
           res.status(500).json({
             jsonrpc: "2.0",
@@ -220,7 +288,6 @@ async function main() {
 
     // Handle GET requests - not supported in stateless mode
     app.get("/mcp", async (req, res) => {
-      console.log(`[MCP Server] GET /mcp received - not supported in stateless mode`);
       res.status(405).json({
         jsonrpc: "2.0",
         error: {
@@ -233,7 +300,6 @@ async function main() {
 
     // Handle DELETE requests - not supported in stateless mode
     app.delete("/mcp", async (req, res) => {
-      console.log(`[MCP Server] DELETE /mcp received - not supported in stateless mode`);
       res.status(405).json({
         jsonrpc: "2.0",
         error: {

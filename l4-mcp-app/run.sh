@@ -20,10 +20,6 @@ else
     echo "Please copy .env.example to .env and configure it"
 fi
 
-# Map environment variables for the widget-mcp-server
-export AC_AIRBYTE_CLIENT_ID="${AIRBYTE_CLIENT_ID:-}"
-export AC_AIRBYTE_CLIENT_SECRET="${AIRBYTE_CLIENT_SECRET:-}"
-export AC_EXTERNAL_USER_ID="${EXTERNAL_USER_ID:-customer-workspace}"
 export ALLOWED_ORIGIN="http://localhost:8081"
 
 # Install dependencies if needed

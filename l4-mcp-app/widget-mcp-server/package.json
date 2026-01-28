@@ -4,6 +4,9 @@
   "type": "module",
   "description": "MCP App Server for Airbyte Embedded Widget",
   "main": "dist/server.mjs",
+  "bin": {
+    "widget-mcp-server": "dist/server.mjs"
+  },
   "scripts": {
     "build": "npm run build:app && npm run build:server",
     "build:app": "vite build",
@@ -25,5 +28,8 @@
     "vite": "^6.4.1",
     "vite-plugin-singlefile": "^2.0.3",
     "zod": "^4.1.13"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3"
   }
 }

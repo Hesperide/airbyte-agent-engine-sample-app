@@ -4,8 +4,13 @@ An MCP server that provides the Airbyte Embedded Widget as an MCP App. This serv
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 18+ (required for fetch API support)
 - Airbyte API credentials (client ID and secret)
+
+**Important:** This MCP server requires Node.js 18 or later. Make sure your default `node` command points to a compatible version:
+```bash
+node --version  # Should show v18.0.0 or higher
+```
 
 ## Installation
 
@@ -16,15 +21,49 @@ npm run build
 
 ## Configuration
 
-Set the following environment variables:
+### Option 1: Environment File (Recommended for MCP Clients)
+
+Set the `AIRBYTE_WIDGET_MCP_ENV_FILE` environment variable to point to your `.env` file:
+
+```json
+{
+  "mcpServers": {
+    "airbyte-widget": {
+      "command": "/absolute/path/to/node",
+      "args": ["/absolute/path/to/widget-mcp-server/dist/server.mjs", "--stdio"],
+      "env": {
+        "AIRBYTE_WIDGET_MCP_ENV_FILE": "/absolute/path/to/your/.env"
+      }
+    }
+  }
+}
+```
+
+**Important:**
+- Use absolute paths for the Node binary, server file, and `.env` file
+- The Node binary must be v18 or later (required for fetch API support)
+- Find your Node path with: `which node` or for nvm users: `~/.nvm/versions/node/v22.x.x/bin/node`
+- Using an absolute path to Node ensures Claude Desktop uses the correct version
+
+Your `.env` file should contain:
+```bash
+AIRBYTE_CLIENT_ID=your_client_id
+AIRBYTE_CLIENT_SECRET=your_client_secret
+EXTERNAL_USER_ID=default-workspace
+```
+
+### Option 2: Direct Environment Variables
+
+Set the following environment variables directly:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `AC_AIRBYTE_CLIENT_ID` | Yes | Airbyte API client ID |
-| `AC_AIRBYTE_CLIENT_SECRET` | Yes | Airbyte API client secret |
-| `AC_EXTERNAL_USER_ID` | No | External user/workspace identifier (default: "customer-workspace") |
+| `AC_AIRBYTE_CLIENT_ID` or `AIRBYTE_CLIENT_ID` | Yes | Airbyte API client ID |
+| `AC_AIRBYTE_CLIENT_SECRET` or `AIRBYTE_CLIENT_SECRET` | Yes | Airbyte API client secret |
+| `AC_EXTERNAL_USER_ID` or `EXTERNAL_USER_ID` | No | External user/workspace identifier (default: "customer-workspace") |
 | `ALLOWED_ORIGIN` | No | Allowed origin for widget token (default: "null") |
 | `MCP_PORT` | No | HTTP server port (default: 3001) |
+| `AIRBYTE_WIDGET_MCP_ENV_FILE` | No | Path to .env file to load |
 
 ## Usage
 
