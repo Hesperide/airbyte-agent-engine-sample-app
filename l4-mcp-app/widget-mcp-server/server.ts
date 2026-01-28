@@ -4,13 +4,17 @@
  *
  * MCP server that provides the Airbyte Embedded Widget as an MCP App.
  * Uses AC_ prefixed environment variables for configuration.
+ * Supports both stdio and HTTP transports.
  */
 
 import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { CallToolResult, ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
+import express from "express";
+import cors from "cors";
 
 const AIRBYTE_API_BASE = "https://api.airbyte.ai/api/v1";
 const AIRBYTE_WIDGET_CDN = "https://cdn.jsdelivr.net/npm/@airbyte-embedded/airbyte-embedded-widget@0.4.2";
@@ -260,8 +264,52 @@ function createServer(): McpServer {
   return server;
 }
 
+const MCP_PORT = parseInt(process.env.MCP_PORT || "3001", 10);
+
 async function main() {
-  await createServer().connect(new StdioServerTransport());
+  const transport = process.argv.includes("--stdio") ? "stdio" : "http";
+  const server = createServer();
+
+  if (transport === "stdio") {
+    console.log("[MCP Server] Starting in stdio mode...");
+    await server.connect(new StdioServerTransport());
+  } else {
+    console.log(`[MCP Server] Starting HTTP server on port ${MCP_PORT}...`);
+
+    const app = express();
+    app.use(cors());
+    app.use(express.json());
+
+    // Store transports by session ID for stateful connections
+    const transports = new Map<string, StreamableHTTPServerTransport>();
+
+    // MCP endpoint
+    app.all("/mcp", async (req, res) => {
+      // Get or create session ID
+      const sessionId = req.headers["mcp-session-id"] as string || "default";
+
+      let httpTransport = transports.get(sessionId);
+
+      if (!httpTransport) {
+        // Create new transport for this session
+        httpTransport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: () => sessionId,
+        });
+        transports.set(sessionId, httpTransport);
+
+        // Connect the server to this transport
+        await server.connect(httpTransport);
+        console.log(`[MCP Server] New session connected: ${sessionId}`);
+      }
+
+      // Handle the request
+      await httpTransport.handleRequest(req, res);
+    });
+
+    app.listen(MCP_PORT, () => {
+      console.log(`[MCP Server] HTTP server listening at http://localhost:${MCP_PORT}/mcp`);
+    });
+  }
 }
 
 main().catch((error) => {

@@ -7,13 +7,17 @@
   "scripts": {
     "build": "esbuild server.ts --bundle --platform=node --format=esm --outfile=dist/server.mjs --external:node:*",
     "serve": "node dist/server.mjs",
+    "serve:stdio": "node dist/server.mjs --stdio",
     "dev": "node --import tsx server.ts"
   },
   "devDependencies": {
     "@modelcontextprotocol/ext-apps": "^1.0.1",
     "@modelcontextprotocol/sdk": "^1.24.0",
+    "@types/express": "^5.0.0",
     "@types/node": "^22.10.0",
+    "cors": "^2.8.5",
     "esbuild": "^0.25.0",
+    "express": "^5.1.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "zod": "^4.1.13"
